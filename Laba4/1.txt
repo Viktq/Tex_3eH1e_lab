@@ -1,0 +1,111 @@
+#include iostream
+#include opencv2opencv.hpp
+#include stdio.h
+#include opencv2imgproc.hpp
+#include cmath
+
+cvMat my_own_dft(cvMat input_img, int rows_num, int cols_num)
+{
+    cvMat W_matrix = cvMat(rows_num, cols_num, CV_32FC2);
+    cvMat complex_img = cvMat(rows_num, cols_num, CV_32FC2);
+
+    for(int rows = 0; rows  input_img.rows; rows++){
+        for(int cols = 0; cols  input_img.cols; cols++){
+            cvComplexfloat pixel;
+            pixel.re = input_img.atfloat(rows, cols);
+            pixel.im = 1.0;
+            complex_img.atcvComplexfloat(rows, cols) = pixel;
+        }
+    }
+
+    for(int rows = 0; rows  input_img.rows; rows++){
+        for(int cols = 0; cols  input_img.cols; cols++){
+            cvComplexfloat exponent;
+            exponent.re = 1.0;
+            exponent.im = exp(-1  (2  M_PI  rows_num  cols_num)  cols  rows);
+            stdcout  exponent  stdendl;
+            W_matrix.atcvComplexfloat(rows, cols) = exponent;
+        }
+    }
+
+    cvMat mult_img = cvMat(rows_num, cols_num, CV_32FC2);
+
+    for(int rows = 0; rows  input_img.rows; rows++){
+        mult_img = complex_img.row(rows)  W_matrix;
+    }
+    for(int cols = 0; cols  input_img.cols; cols++){
+        mult_img = W_matrix  complex_img.col(cols);
+    }
+
+    cvMat result_img = cvMat(rows_num, cols_num, CV_32F);
+    for(int rows = 0; rows  input_img.rows; rows++){
+        for(int cols = 0; cols  input_img.cols; cols++){
+            result_img.atfloat(rows, cols) = mult_img.atcvComplexfloat(rows, cols).re;
+        }
+    }
+
+    return result_img;
+
+}
+
+int main()
+{
+    cvMat starting_image = cvimread(CWIPTex3penieLaba_4_ClionFourier.jpeg, cvIMREAD_GRAYSCALE);
+    cvresize(starting_image, starting_image, cvSize(500, 500), 0, 0);
+
+    cvMat padded;
+    int m = cvgetOptimalDFTSize(starting_image.rows);
+    int n = cvgetOptimalDFTSize(starting_image.cols);
+
+    cvcopyMakeBorder(starting_image, padded, 0, m - starting_image.rows, 0,
+                       n - starting_image.cols, cvBORDER_CONSTANT, cvScalarall(0));
+
+    cvMat planes[] = {cvMat_float(padded), cvMatzeros(padded.size(), CV_32F)};
+
+    cvMat complex_image;
+    cvmerge(planes, 2, complex_image);
+
+    dft(complex_image, complex_image);
+
+    cvMat transformed_img = cvMat(m, n, CV_32F);
+    transformed_img = my_own_dft(complex_image, m, n);
+
+    cvsplit(transformed_img, planes);
+    cvmagnitude(planes[0], planes[1], planes[0]);
+    cvMat magI = planes[0];
+    magI += cvScalarall(1);
+    log(magI, magI);
+
+    magI = magI(cvRect(0, 0, magI.cols & -2, magI.rows & -2));
+
+    int cx = magI.cols2;
+    int cy = magI.rows2;
+    cvMat q0(magI, cvRect(0, 0, cx, cy));
+    cvMat q1(magI, cvRect(cx, 0, cx, cy));
+    cvMat q2(magI, cvRect(0, cy, cx, cy));
+    cvMat q3(magI, cvRect(cx, cy, cx, cy));
+    cvMat tmp;
+    q0.copyTo(tmp);
+    q3.copyTo(q0);
+    tmp.copyTo(q3);
+    q1.copyTo(tmp);
+    q2.copyTo(q1);
+    tmp.copyTo(q2);
+    normalize(magI, magI, 0, 1, cvNORM_MINMAX);
+
+
+    imshow(Input Image, starting_image);
+
+    imshow(spectrum magnitude, magI);
+
+    while (1)
+    {
+        char c = (char)cvwaitKey(500);
+        if (c == 27)
+        {
+            break;
+        }
+    }
+
+    return 0;
+}
